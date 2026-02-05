@@ -10,6 +10,11 @@ app.use(express.json());
 app.use(cors());
 app.use(helmet());
 
+// Routes
+import routes from "./routes";
+
+app.use("/api/v1", routes);
+
 // Health Check
 app.get("/api/health", (req, res) => {
     res.status(200).json({ status: "OK", env: ENV.NODE_ENV });
