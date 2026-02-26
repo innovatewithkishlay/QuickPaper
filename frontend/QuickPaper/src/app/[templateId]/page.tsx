@@ -1,16 +1,17 @@
 "use client";
-import { useState, useMemo } from "react";
-import { notFound, useParams } from "next/navigation";
-import { templates } from "@/app/templates";
+import { useState, useMemo, useEffect } from "react";
+import { notFound, useParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import FormRenderer from "@/components/FormRenderer";
 import PDFExporter from "@/components/PDFExporter";
 import Template from "../Template";
 import Link from "next/link";
-import { FiChevronDown, FiChevronUp, FiHome } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiHome, FiSave } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import CopyTextButton from "@/components/CopyTextButton";
 import Footer from "@/components/Footer";
+import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 function fillTemplate(
   template: string,
@@ -30,22 +31,50 @@ function fillTemplate(
 export default function TemplatePage() {
   const params = useParams();
   const templateId = params.templateId as string;
+  const router = useRouter();
+  const { user } = useAuth();
 
-  const templateData = useMemo(
-    () => templates.find((t) => t.id === templateId),
-    [templateId]
-  );
-
-  const initialState = useMemo(() => {
-    const obj: Record<string, string> = {};
-    templateData?.fields.forEach((f) => (obj[f.name] = ""));
-    return obj;
-  }, [templateData]);
-
-  const [values, setValues] = useState(initialState);
+  const [templateData, setTemplateData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
   const [showFullPreview, setShowFullPreview] = useState(false);
 
-  if (!templateId || !templateData) return notFound();
+  useEffect(() => {
+    api.getTemplateById(templateId)
+      .then((data) => {
+        setTemplateData(data);
+        const obj: Record<string, string> = {};
+        data.fields.forEach((f: any) => (obj[f.name] = ""));
+        setValues(obj);
+      })
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [templateId]);
+
+  const handleSaveDraft = async () => {
+    if (!user) {
+      alert("Please login to save drafts.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const doc = await api.createDocument({
+        templateId,
+        title: templateData.title, // User can change title later
+        contentData: values
+      });
+      router.push(`/documents/${doc.id}`); // Redirect to document editor
+    } catch (error) {
+      console.error("Failed to save draft", error);
+      alert("Failed to save draft");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="p-10 text-center">Loading template...</div>;
+  if (!templateData) return notFound();
 
   const filled = fillTemplate(
     templateData.template,
@@ -129,10 +158,21 @@ export default function TemplatePage() {
 
               <motion.div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => setValues(initialState)}
+                  onClick={() => {
+                    const obj: Record<string, string> = {};
+                    templateData.fields.forEach((f: any) => (obj[f.name] = ""));
+                    setValues(obj);
+                  }}
                   className="flex items-center px-5 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
                 >
                   Reset Form
+                </button>
+                <button
+                  onClick={handleSaveDraft}
+                  disabled={saving}
+                  className="flex items-center px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : <><FiSave className="mr-2" /> Save Draft</>}
                 </button>
                 <CopyTextButton textToCopy={filled.replace(/<[^>]+>/g, "")} />
                 <PDFExporter

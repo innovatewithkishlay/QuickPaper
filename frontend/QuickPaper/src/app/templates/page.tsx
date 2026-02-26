@@ -1,5 +1,4 @@
-"use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import TemplateCard from "@/components/TemplateCard";
@@ -7,7 +6,7 @@ import Template from "@/app/Template";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiGrid, FiList, FiFilter } from "react-icons/fi";
 import NoResultsFound from "@/components/NoResultsFound";
-import { templates } from "@/app/templates";
+import { api } from "@/lib/api";
 
 const categories = ["All", "Student", "Work", "Finance", "Legal", "Personal"];
 
@@ -16,6 +15,15 @@ export default function TemplatesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getTemplates()
+      .then(setTemplates)
+      .catch((err) => console.error("Failed to load templates", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     let result = templates;
@@ -26,12 +34,12 @@ export default function TemplatesPage() {
       result = result.filter(
         (t) =>
           t.title.toLowerCase().includes(search.toLowerCase()) ||
-          t.description.toLowerCase().includes(search.toLowerCase()) ||
+          t.description?.toLowerCase().includes(search.toLowerCase()) ||
           t.category.toLowerCase().includes(search.toLowerCase())
       );
     }
-    return result.sort((a, b) => b.popularity - a.popularity);
-  }, [search, selectedCategory]);
+    return result; // Backend doesn't send popularity yet, strictly
+  }, [search, selectedCategory, templates]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-white via-slate-50 to-blue-50">
@@ -63,6 +71,7 @@ export default function TemplatesPage() {
                 {templates.length}+ modern, ready-to-use documents—search,
                 filter, and create in seconds.
               </motion.p>
+              {loading && <p className="text-blue-600 animate-pulse">Loading templates...</p>}
               <motion.div
                 initial={{ opacity: 0, filter: "blur(8px)" }}
                 animate={{ opacity: 1, filter: "blur(0px)" }}
@@ -94,22 +103,20 @@ export default function TemplatesPage() {
                 <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`p-2 rounded-full transition-all ${
-                      viewMode === "grid"
-                        ? "bg-blue-600 text-white shadow"
-                        : "text-gray-500 hover:text-blue-700"
-                    }`}
+                    className={`p-2 rounded-full transition-all ${viewMode === "grid"
+                      ? "bg-blue-600 text-white shadow"
+                      : "text-gray-500 hover:text-blue-700"
+                      }`}
                     aria-label="Grid view"
                   >
                     <FiGrid size={18} />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`p-2 rounded-full transition-all ${
-                      viewMode === "list"
-                        ? "bg-blue-600 text-white shadow"
-                        : "text-gray-500 hover:text-blue-700"
-                    }`}
+                    className={`p-2 rounded-full transition-all ${viewMode === "list"
+                      ? "bg-blue-600 text-white shadow"
+                      : "text-gray-500 hover:text-blue-700"
+                      }`}
                     aria-label="List view"
                   >
                     <FiList size={18} />
@@ -127,9 +134,8 @@ export default function TemplatesPage() {
                     }}
                     exit={{ height: 0, opacity: 0, filter: "blur(8px)" }}
                     transition={{ duration: 0.3 }}
-                    className={`mt-4 overflow-hidden ${
-                      showFilters ? "block" : "hidden md:block"
-                    }`}
+                    className={`mt-4 overflow-hidden ${showFilters ? "block" : "hidden md:block"
+                      }`}
                   >
                     <div className="flex flex-wrap gap-2">
                       {categories.map((cat) => (
@@ -137,10 +143,9 @@ export default function TemplatesPage() {
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
                           className={`px-4 py-2 rounded-full font-medium text-sm transition-all border
-                            ${
-                              selectedCategory === cat
-                                ? "bg-blue-600 text-white border-blue-600 shadow"
-                                : "bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-400"
+                            ${selectedCategory === cat
+                              ? "bg-blue-600 text-white border-blue-600 shadow"
+                              : "bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-400"
                             }
                           `}
                         >
@@ -184,11 +189,10 @@ export default function TemplatesPage() {
                   animate={{ opacity: 1, filter: "blur(0px)" }}
                   exit={{ opacity: 0, filter: "blur(10px)" }}
                   transition={{ duration: 0.5 }}
-                  className={`grid gap-6 ${
-                    viewMode === "grid"
-                      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                      : "grid-cols-1"
-                  }`}
+                  className={`grid gap-6 ${viewMode === "grid"
+                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    : "grid-cols-1"
+                    }`}
                 >
                   {filtered.map((template, index) => (
                     <motion.div
