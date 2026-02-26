@@ -35,37 +35,60 @@ export class DocumentService {
         return document;
     }
 
-    static async update(userId: string, id: string, title: string, contentData: any) {
-        // Check ownership
+    static async update(userId: string, id: string, data: { title?: string, contentData?: any, isArchived?: boolean, tags?: string[] }) {
         const existing = await prisma.document.findFirst({ where: { id, user_id: userId } });
         if (!existing) throw new Error("Document not found");
 
-        const updated = await prisma.document.update({
+        return prisma.document.update({
             where: { id },
             data: {
-                title,
-                content_data: contentData,
-                versions: {
+                title: data.title,
+                content_data: data.contentData,
+                is_archived: data.isArchived,
+                tags: data.tags,
+                versions: data.contentData ? {
                     create: {
-                        content_data: contentData,
+                        content_data: data.contentData,
+                        metadata: {
+                            updated_at: new Date().toISOString()
+                        }
                     },
-                },
+                } : undefined,
             },
         });
-        return updated;
+    }
+
+    static async archive(userId: string, id: string) {
+        return this.update(userId, id, { isArchived: true });
+    }
+
+    static async unarchive(userId: string, id: string) {
+        return this.update(userId, id, { isArchived: false });
+    }
+
+    static async getVersions(userId: string, id: string) {
+        const document = await prisma.document.findFirst({
+            where: { id, user_id: userId },
+            include: { versions: { orderBy: { created_at: "desc" } } }
+        });
+        if (!document) throw new Error("Document not found");
+        return document.versions;
+    }
+
+    static async restoreVersion(userId: string, id: string, versionId: string) {
+        const version = await prisma.documentVersion.findFirst({
+            where: { id: versionId, document_id: id }
+        });
+        if (!version) throw new Error("Version not found");
+
+        return this.update(userId, id, {
+            contentData: version.content_data
+        });
     }
 
     static async delete(userId: string, id: string) {
         const existing = await prisma.document.findFirst({ where: { id, user_id: userId } });
         if (!existing) throw new Error("Document not found");
-
-        // Deleting document will cascade delete versions if configured, or we delete manually.
-        // Prisma cascading relation on delete is default? Let's assume schema handles it or we delete versions first.
-        // Schema defines: versions DocumentVersion[]. No onDelete cascade specified in schema previously?
-        // Let's rely on Prisma client to delete relations if setup, but usually need `onDelete: Cascade` in schema.
-        // I'll update schema later if needed, but for now strict deletion:
-        // Actually, I should check schema. "onDelete: Cascade" wasn't explicitly added.
-        // I will delete versions first manually to be safe.
 
         await prisma.documentVersion.deleteMany({ where: { document_id: id } });
         return prisma.document.delete({ where: { id } });

@@ -12,8 +12,16 @@ model User {
   name          String
   email         String     @unique
   password_hash String
+  role          UserRole   @default(USER)
+  last_login    DateTime?
   created_at    DateTime   @default(now())
   documents     Document[]
+  activities    ActivityLog[]
+}
+
+enum UserRole {
+  ADMIN
+  USER
 }
 
 model Template {
@@ -30,6 +38,8 @@ model Document {
   id          String            @id @default(uuid())
   title       String
   content_data Json
+  is_archived Boolean           @default(false)
+  tags        String[]          @default([])
   created_at  DateTime          @default(now())
   updated_at  DateTime          @updatedAt
   
@@ -45,8 +55,19 @@ model Document {
 model DocumentVersion {
   id           String   @id @default(uuid())
   content_data Json
+  metadata     Json?    @default("{}")
   created_at   DateTime @default(now())
   
   document_id  String
   document     Document @relation(fields: [document_id], references: [id])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  action     String
+  metadata   Json?    @default("{}")
+  created_at DateTime @default(now())
+  
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id])
 }

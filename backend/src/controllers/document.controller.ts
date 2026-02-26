@@ -42,8 +42,56 @@ export class DocumentController {
             // @ts-ignore
             const userId = req.user?.userId;
             const { id } = req.params;
-            const { title, contentData } = req.body;
-            const doc = await DocumentService.update(userId, id, title, contentData);
+            const { title, contentData, isArchived, tags } = req.body;
+            const doc = await DocumentService.update(userId, id, { title, contentData, isArchived, tags });
+            res.status(200).json(doc);
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    static async archive(req: Request, res: Response) {
+        try {
+            // @ts-ignore
+            const userId = req.user?.userId;
+            const { id } = req.params;
+            const doc = await DocumentService.archive(userId, id);
+            res.status(200).json(doc);
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    static async unarchive(req: Request, res: Response) {
+        try {
+            // @ts-ignore
+            const userId = req.user?.userId;
+            const { id } = req.params;
+            const doc = await DocumentService.unarchive(userId, id);
+            res.status(200).json(doc);
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    static async getVersions(req: Request, res: Response) {
+        try {
+            // @ts-ignore
+            const userId = req.user?.userId;
+            const { id } = req.params;
+            const versions = await DocumentService.getVersions(userId, id);
+            res.status(200).json(versions);
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    static async restoreVersion(req: Request, res: Response) {
+        try {
+            // @ts-ignore
+            const userId = req.user?.userId;
+            const { id, versionId } = req.params;
+            const doc = await DocumentService.restoreVersion(userId, id, versionId);
             res.status(200).json(doc);
         } catch (error: any) {
             res.status(400).json({ error: error.message });
